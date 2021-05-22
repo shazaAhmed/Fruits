@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<a href="/">Retour menu</a>
+<div style="display: flex;flex-direction:column;justify-content: center;align-items: center;">
+    <h1> L'image que vous avez uploadé appartient à la catégorie :</h1>
+    
+    {% for pred in preds %}
+        <p>Numéro {{pred}} :  {{fruits_classes[pred]}}</p>
+    {% endfor %}
+    <div class="">
+        <img src="{{url_for('static', filename=path)}}">
+    </div>
+
+</div>
+
+</body>
+</html>

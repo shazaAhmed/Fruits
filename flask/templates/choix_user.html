@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div class="container-fluid">
+<div class="row">
+    {{mess}}
+  <h3> Utilisation du deep Learning pour des predictions </h3>
+    <div class="col-6">
+        <form action="/choix" method="POST">
+            <div class="form-group">
+                 <label class="form-label">Analyse de fruits</label>
+                 <input type="radio" name="choix" value="train" >
+            </div>
+            <br>
+          <button class="btn btn-primary" type="submit" name="submit">Submit</button>
+        </form>
+    </div>
+    <div class="col-6">
+        {% for pred in preds %}
+            <h3>{{pred}} :  {{fruits_classes[pred]}}</h3>
+        {% endfor %}
+    </div>
+</div>
+</div>
+</body>
+</html>
