@@ -5,6 +5,7 @@ import torchvision
 import tarfile
 import torch.nn as nn
 import numpy as np
+import pandas as pd
 import torch.nn.functional as F
 from torchvision.datasets.utils import download_url
 from torchvision.datasets import ImageFolder
@@ -18,13 +19,9 @@ import matplotlib.pyplot as plt
 #matplotlib inline
 from tqdm.notebook import tqdm
 import torchvision.models as models
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from unidecode import unidecode
-import re
 
-#import conf
+
 
 class ImageClassificationBase(nn.Module):
     def training_step(self, batch):
@@ -52,6 +49,34 @@ class ImageClassificationBase(nn.Module):
             epoch, result['lrs'][-1], result['train_loss'], result['val_loss'], result['val_acc']))
 
 
+class SimpleCNN(ImageClassificationBase):
+    def __init__(self):
+        super().__init__()
+        
+        self.res = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=32,
+                    kernel_size=3, stride=1, padding=1),  # 3 x 100 x 100 -> 32 x 100 x 100
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 3, 1, 1),  # bs x 32 x 100 x 100 -> 64 x 100 x 100
+            nn.ReLU(),
+            nn.Conv2d(64, 128, 3, 1, 1),  # bs x 64 x 100 x 100 -> 128 x 100 x 100
+            nn.ReLU(),
+            nn.Conv2d(128, 256, 3, 2, 1),  # bs x 128 x 100 x 100 -> 256 x 50 x 50
+            nn.ReLU(),
+            nn.Conv2d(256, 512, 3, 2, 1),  # bs x 256 x 50 x 50 -> 512 x 25 x 25
+            nn.ReLU(),
+            nn.Conv2d(512, 1024, 3, 2, 1),  # bs x 512 x 25 x 25 -> 1024 x 12 x 12
+            nn.ReLU(),
+            nn.MaxPool2d(4),                          # -> 1024 x 3 x 3
+            nn.Flatten(),                             # -> 9216
+            nn.Linear(9216, 131)
+        )
+    
+    def forward(self, xb):
+        out = self.res(xb)
+        return out
+
+
 class ResNetCNN(ImageClassificationBase):
     def __init__(self):
         super().__init__()
@@ -77,6 +102,43 @@ class ResNetCNN(ImageClassificationBase):
             param.require_grad = True
 
 
+
+def conv_block(in_channels, out_channels, pool=False):
+    layers = [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1), 
+              nn.BatchNorm2d(out_channels),     # Batch Normalization
+              nn.ReLU(inplace=True)]
+    if pool: layers.append(nn.MaxPool2d(2))
+    return nn.Sequential(*layers)
+
+class CustomCNN(ImageClassificationBase):
+    def __init__(self, in_channels, num_classes):
+        super().__init__()
+        
+        self.conv1 = conv_block(in_channels, 128)                                 # 3 x 100 x 100 ->
+        self.conv2 = conv_block(128, 256, pool=True)                              # 128 x 100 x 100 ->
+        self.res1 = nn.Sequential(conv_block(256, 256), conv_block(256, 256))     # 256 x 50 x 50 ->
+        
+        self.conv3 = conv_block(256, 512, pool=True)                              # -> 512 x 25 x 25
+        self.conv4 = conv_block(512, 1024, pool=True)                             # -> 1024 x 12 x 12
+        self.res2 = nn.Sequential(conv_block(1024, 1024), conv_block(1024, 1024)) # -> 1024 x 12 x 12
+        
+        self.classifier = nn.Sequential(nn.MaxPool2d(4),                          # -> 1024 x 3 x 3
+                                        nn.Flatten(),                             # -> 9216
+                                        nn.Linear(9216, num_classes))             # -> 131
+        
+    def forward(self, xb):
+        out = self.conv1(xb)
+        out = self.conv2(out)
+        out = self.res1(out) + out    # Residual Block 
+        out = self.conv3(out)
+        out = self.conv4(out)
+        out = self.res2(out) + out    # Residual Block
+        out = self.classifier(out)
+        return out
+
+
+
+
 def predict_image(img,model):
     # Convert to a batch of 1
     xb = img.unsqueeze(0)
@@ -87,4 +149,13 @@ def predict_image(img,model):
     # Retrieve the class label
     #return valid_ds.classes[preds[0].item()]
     return preds[0].item()
+
+df_2 = pd.read_csv('NutritionalFacts_Fruit_Vegetables_Seafood.csv', engine='python')
+def get_nutritional_value_2(fruit_name):
+    list_name = fruit_name.split(' ')
+    search_term = fruit_name
+    if len(list_name) > 1:
+        search_term = list_name[0]
+    
+    return (df_2[df_2['Food and Serving'].str.contains(search_term, na=False)])
 

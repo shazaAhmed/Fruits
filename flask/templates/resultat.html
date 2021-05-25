@@ -17,6 +17,14 @@
     </div>
 
 </div>
+<h2>
+<div class="row">
+        <div class="col-12">
+            {% for valeur in nutritions %}
+                {{valeur.to_html(classes='table table-striped')|safe}}
+            {% endfor %}
+        </div>
+    </div>
 
 </body>
 </html>
